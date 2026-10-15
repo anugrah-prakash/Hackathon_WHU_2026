@@ -15,7 +15,7 @@ class ConnectionCheck:
 
 def check_connection(api_key: str, model: str) -> ConnectionCheck:
     if not api_key or api_key.startswith("your_"):
-        raise ExplanationError("Add your TrustedTokens API key to .env or Streamlit Secrets first.")
+        raise ExplanationError("Add your OpenAI API key to .env or Streamlit Secrets first.")
     request = urllib.request.Request(f"{API_BASE}/models", headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"}, method="GET")
     try:
         with open_request(request, timeout=20) as response:

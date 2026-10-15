@@ -38,17 +38,17 @@ class NetworkTests(unittest.TestCase):
 
     def test_timeout_configuration_is_bounded(self):
         for value in ("abc", "0", "601", "-1"):
-            with patch.dict("os.environ", {"TRUSTEDTOKENS_TIMEOUT_SECONDS": value}):
+            with patch.dict("os.environ", {"OPENAI_TIMEOUT_SECONDS": value}):
                 with self.assertRaises(TransportConfigError):
                     timeout_seconds()
-        with patch.dict("os.environ", {"TRUSTEDTOKENS_TIMEOUT_SECONDS": "300"}):
+        with patch.dict("os.environ", {"OPENAI_TIMEOUT_SECONDS": "300"}):
             self.assertEqual(timeout_seconds(), 300)
 
     def test_tls_stays_verified(self):
         import urllib.request
         context = ssl.create_default_context()
         with patch("medeasy.network.ssl.create_default_context", return_value=context), patch("urllib.request.build_opener") as build:
-            open_request(urllib.request.Request("https://api.trustedtokens.eu/v1/models"), timeout=20)
+            open_request(urllib.request.Request("https://api.openai.com/v1/models"), timeout=20)
         self.assertTrue(context.check_hostname)
         self.assertEqual(context.verify_mode, ssl.CERT_REQUIRED)
         self.assertTrue(any(isinstance(handler, NoRedirect) for handler in build.call_args.args))
@@ -56,15 +56,15 @@ class NetworkTests(unittest.TestCase):
     def test_custom_ca_adds_trust_without_replacing_system_context(self):
         import urllib.request
         context = Mock()
-        with patch.dict("os.environ", {"TRUSTEDTOKENS_CA_BUNDLE": "organisation.pem"}), patch("medeasy.network.ssl.create_default_context", return_value=context), patch("urllib.request.build_opener"):
-            open_request(urllib.request.Request("https://api.trustedtokens.eu/v1/models"), timeout=20)
+        with patch.dict("os.environ", {"OPENAI_CA_BUNDLE": "organisation.pem"}), patch("medeasy.network.ssl.create_default_context", return_value=context), patch("urllib.request.build_opener"):
+            open_request(urllib.request.Request("https://api.openai.com/v1/models"), timeout=20)
         context.load_verify_locations.assert_called_once_with(cafile="organisation.pem")
 
     def test_ca_configuration_error_is_safe(self):
         import urllib.request
         with patch("medeasy.network.ssl.create_default_context", side_effect=OSError("private filename")):
             with self.assertRaisesRegex(TransportConfigError, "CONNECTION-CA-CONFIG") as caught:
-                open_request(urllib.request.Request("https://api.trustedtokens.eu/v1/models"), timeout=20)
+                open_request(urllib.request.Request("https://api.openai.com/v1/models"), timeout=20)
         self.assertNotIn("private", str(caught.exception))
 
     def test_redirects_never_forward_credentials(self):
@@ -78,7 +78,7 @@ class ConnectionCheckTests(unittest.TestCase):
             result = check_connection("secret-key", "test/model")
         request = call.call_args.args[0]
         self.assertEqual(request.get_method(), "GET")
-        self.assertEqual(request.full_url, "https://api.trustedtokens.eu/v1/models")
+        self.assertEqual(request.full_url, "https://api.openai.com/v1/models")
         self.assertIsNone(request.data)
         self.assertEqual(result.models_count, 2)
         self.assertTrue(result.model_listed)

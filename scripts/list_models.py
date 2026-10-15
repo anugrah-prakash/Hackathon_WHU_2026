@@ -13,7 +13,7 @@ from medeasy.network import open_request, connection_message, TransportConfigErr
 def main():
     key, _ = settings()
     if not key or key.startswith("your_"):
-        sys.exit("Set TRUSTEDTOKENS_API_KEY in .env first.")
+        sys.exit("Set OPENAI_API_KEY in .env first.")
     request = urllib.request.Request(f"{API_BASE}/models", headers={"Authorization": f"Bearer {key}"})
     try:
         with open_request(request, timeout=30) as response:

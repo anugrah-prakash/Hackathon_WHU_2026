@@ -166,11 +166,14 @@ class APITests(unittest.TestCase):
         with patch("urllib.request.build_opener", return_value=self.fake_opener(body)):
             result = explain(SOURCE, "secret-key", "example/model")
         payload = json.loads(self.request.data)
-        self.assertEqual(self.request.full_url, "https://api.trustedtokens.eu/v1/chat/completions")
+        self.assertEqual(self.request.full_url, "https://api.openai.com/v1/chat/completions")
         self.assertEqual(self.request.get_header("Authorization"), "Bearer secret-key")
         self.assertEqual(json.loads(payload["messages"][1]["content"])["source_passages"], [{"id": "S0001", "text": SOURCE}])
         self.assertEqual(payload["response_format"]["json_schema"]["schema"]["properties"]["summary"]["properties"]["evidence"]["items"]["enum"], ["S0001"])
         self.assertEqual(payload["response_format"]["type"], "json_schema")
+        self.assertEqual(payload["max_completion_tokens"], 7000)
+        self.assertFalse(payload["store"])
+        self.assertNotIn("max_tokens", payload)
         self.assertEqual(result.summary.text, "This is your discharge letter.")
 
     def test_truncated_response_never_displayed(self):

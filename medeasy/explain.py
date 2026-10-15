@@ -11,7 +11,7 @@ from .network import open_request, timeout_seconds, connection_message, Transpor
 from .summary import split_summary
 from .evidence import source_passages
 
-API_BASE = "https://api.trustedtokens.eu/v1"
+API_BASE = "https://api.openai.com/v1"
 MAX_CHARS = 40_000
 MISSING = "Not specified in the letter"
 
@@ -147,9 +147,9 @@ def explain(source: str, api_key: str, model: str, repair_note: str | None = Non
     """
     source = validate_source(source)
     if not api_key or api_key.startswith("your_"):
-        raise ExplanationError("Add your TrustedTokens API key to .env or Streamlit Secrets first.")
+        raise ExplanationError("Add your OpenAI API key to .env or Streamlit Secrets first.")
     if not model.strip():
-        raise ExplanationError("Set TRUSTEDTOKENS_MODEL to a model available in your account.")
+        raise ExplanationError("Set OPENAI_MODEL to a model available in your account.")
     passages = source_passages(source)
     schema = deepcopy(RESPONSE_SCHEMA)
     for claim_schema in (schema["properties"]["summary"],
@@ -159,7 +159,7 @@ def explain(source: str, api_key: str, model: str, repair_note: str | None = Non
             "type": "string", "enum": list(passages),
         }
     body = {
-        "model": model, "temperature": 0, "max_tokens": 7000,
+        "model": model, "temperature": 0, "max_completion_tokens": 7000, "store": False,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT if not repair_note else f"{SYSTEM_PROMPT}\n{repair_note}"},
             {"role": "user", "content": json.dumps({"source_passages": [{"id": ref, "text": text} for ref, text in passages.items()]}, ensure_ascii=False)},
@@ -190,12 +190,12 @@ def explain(source: str, api_key: str, model: str, repair_note: str | None = Non
     except urllib.error.HTTPError as exc:
         messages = {
             407: "Your network proxy requires authentication. Check your proxy configuration. Diagnostic: CONNECTION-PROXY-AUTH.",
-            401: "The API key was not accepted. Check your TrustedTokens API key.",
+            401: "The API key was not accepted. Check your OpenAI API key.",
             403: "Access was denied by the API or network gateway. Check your account, model access and network policy. Diagnostic: API-HTTP-403.",
-            404: "This model was not found. Check TRUSTEDTOKENS_MODEL.",
+            404: "This model was not found. Check OPENAI_MODEL.",
             429: "The service is busy or your account limit was reached. Try again later.",
             400: "The provider rejected the request. Check that the selected model supports structured output and the document fits its context limit.",
-            402: "The provider reports an account billing issue. Check your TrustedTokens account.",
+            402: "The provider reports an account billing issue. Check your OpenAI account.",
         }
         raise ExplanationError(messages.get(exc.code, "The AI service is unavailable. Try again later.")) from None
     except TransportConfigError as exc:

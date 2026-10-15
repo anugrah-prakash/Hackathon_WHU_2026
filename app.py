@@ -44,18 +44,18 @@ with right:
     st.markdown('<div class="side-card"><h3>A little clarity.<br>A lot less worry.</h3><p><b>SUMMARY</b><br>What your letter is about.</p><p><b>ACTION REQUIRED</b><br>What to do, and when.</p><p><b>IMPORTANT DETAILS</b><br>Dates, numbers and things to keep.</p></div>', unsafe_allow_html=True)
     st.caption("AI can make mistakes. Check the explanation against your letter. Ask your care team if anything is unclear. Do not change medicines based only on this app.")
     with st.expander("What happens to my information?"):
-        st.write("Your file or photo is read on the app server. Photo text is extracted there with OCR. Only the text you review is sent to TrustedTokens when you click Explain my letter. You can remove names and addresses first.")
+        st.write("Your file or photo is read on the app server. Photo text is extracted there with OCR. Only the text you review is sent to OpenAI when you click Explain my letter. You can remove names and addresses first.")
         st.write("The app does not intentionally save letters or explanations to files, a database, or a shared cache. They are held in your session. Clear this letter removes the app's session copy; it does not erase provider records, browser downloads, or infrastructure records. The hosting service and API provider may process or retain data under their policies.")
-        st.link_button("TrustedTokens privacy policy", "https://trustedtokens.eu/privacy-policy/")
+        st.link_button("OpenAI privacy policy", "https://developers.openai.com/api/docs/guides/your-data")
     if not api_key or api_key.startswith("your_"):
-        st.info("Setup needed: add your API key to .env before explaining a letter. You can still try uploading the fictional example.")
+        st.info("Setup needed: add OPENAI_API_KEY to .env or Streamlit Secrets before explaining a letter. You can still try uploading the fictional example.")
     if st.button("Check API connection", use_container_width=True):
         try:
             with st.spinner("Checking API access without sending your letter…"):
                 check = check_connection(api_key, model)
             st.success("API model catalog reached and the key was accepted. No letter text was sent. This does not test a model response.")
             if not check.model_listed:
-                st.warning("The configured model was not listed in the catalog. Check TRUSTEDTOKENS_MODEL before explaining the letter.")
+                st.warning("The configured model was not listed in the catalog. Check OPENAI_MODEL before explaining the letter.")
         except ExplanationError as exc:
             st.error(str(exc))
     st.caption("The connection check requests the model catalog. It does not submit your letter or generate an explanation.")
@@ -141,7 +141,7 @@ with left:
             document_error = st.session_state.get("photo_error")
             if document_error:
                 st.error(document_error)
-            st.caption(f"Pages added: {len(st.session_state.photo_pages)} / 20. Photo reading runs on this app server. Only the checked text is sent to TrustedTokens.")
+            st.caption(f"Pages added: {len(st.session_state.photo_pages)} / 20. Photo reading runs on this app server. Only the checked text is sent to OpenAI.")
             if pending_photo:
                 st.info("Read and add the current photo before explaining the letter. To leave it out, remove the current photo.")
             st.warning("Photo reading can miss words or misread numbers. Check every page against the photos, especially medicine names, doses, dates and amounts. Type any missing text below.")
@@ -158,7 +158,7 @@ with left:
             st.session_state.source_id = source_id
             st.session_state.explain_failures = 0
         st.caption(f"{len(source):,} / 40,000 characters. Check names, dates, amounts, medicines and doses against the original.")
-        consent = st.checkbox("I checked this text. I agree to send it to TrustedTokens to get an explanation.", key=f"consent_{epoch}_{source_id}")
+        consent = st.checkbox("I checked this text. I agree to send it to OpenAI to get an explanation.", key=f"consent_{epoch}_{source_id}")
         if st.button("Explain my letter →", type="primary", use_container_width=True,
                      disabled=not source.strip() or not consent or bool(document_error) or pending_photo or len(source.strip()) > 40_000):
             st.session_state.pop("result", None)
@@ -209,4 +209,4 @@ if "result" in st.session_state:
                             st.text(f'“{quote}”')
     st.download_button("Download explanation (.txt)", render_text(result, result_source), file_name="medeasy_explanation.txt", mime="text/plain", use_container_width=False)
 
-st.markdown('<div class="footer">MedEasy AI v1.6.1 · Simple words. Clear next steps. &nbsp; This app explains the supplied text. It does not verify the letter or replace your care team.</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">MedEasy AI v2.0 (OpenAI) · Simple words. Clear next steps. &nbsp; This app explains the supplied text. It does not verify the letter or replace your care team.</div>', unsafe_allow_html=True)
