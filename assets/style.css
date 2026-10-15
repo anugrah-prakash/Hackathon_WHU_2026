@@ -1,0 +1,28 @@
+:root { --ink: #152d27; --green: #17624b; --muted: #586b64; }
+.stApp { background: #f7f8f4; }
+[data-testid="stHeader"] { background: rgba(247,248,244,.96); }
+.block-container { max-width: 1180px; padding-top: 2.4rem; padding-bottom: 3rem; }
+html, body, [class*="css"] { font-family: Arial, sans-serif; }
+h1, h2, h3 { color: var(--ink); letter-spacing: -.035em; }
+h1 { font-size: clamp(2.6rem, 5vw, 4.2rem) !important; line-height: 1.08 !important; font-weight: 700 !important; max-width: 800px; }
+p, label, li { line-height: 1.65; }
+.brand { display:flex; align-items:center; gap:12px; font-size:24px; font-weight:750; color:var(--ink); margin-bottom:48px; letter-spacing:-.7px; }
+.brand-icon { background:var(--green); color:white; width:36px; height:36px; border-radius:11px; display:inline-flex; justify-content:center; align-items:center; font-size:28px; }
+.brand span:last-child { color:var(--muted); font-size:12px; font-weight:500; margin-left:auto; letter-spacing:1.5px; }
+.eyebrow { color:var(--green); font-size:12px; font-weight:bold; letter-spacing:1.7px; margin-bottom:14px; }
+.hero-copy { color:var(--muted); font-size:19px; max-width:700px; margin:16px 0 25px; }
+.steps { display:flex; flex-wrap:wrap; gap:12px; margin:25px 0 36px; }
+.step { border:1px solid #dce5dc; border-radius:40px; padding:9px 16px; font-size:13px; color:#385448; background:#fff; }
+[data-testid="stVerticalBlockBorderWrapper"] { background:#fff; border-radius:18px; }
+[data-testid="stTextArea"] textarea { font-size:17px; line-height:1.65; border-radius:12px; }
+.stButton button, .stDownloadButton button { border-radius:10px; min-height:47px; font-weight:650; }
+.stButton button[kind="primary"] { background:#17624b; border-color:#17624b; }
+.note { color:var(--muted); font-size:14px; padding:15px 0; }
+.side-card { background:#e9eee5; border:1px solid #dce5d7; border-radius:18px; padding:25px; color:var(--ink); }
+.side-card h3 { font-size:23px; margin:0 0 18px; }
+.side-card p { font-size:15px; margin:12px 0; }
+.result-label { color:#17624b; font-size:12px; letter-spacing:1.5px; margin-bottom:8px; font-weight:700; }
+.claim { color:#18352b; font-size:18px; line-height:1.7; margin:10px 0; overflow-wrap:anywhere; white-space:pre-wrap; }
+.source-line { font-size:14px; color:#43584e; padding:7px 0; border-bottom:1px solid #e8eee7; overflow-wrap:anywhere; white-space:pre-wrap; }
+.footer { border-top:1px solid #dce5dc; margin-top:42px; padding-top:18px; font-size:12px; color:var(--muted); }
+@media(max-width:640px) { .block-container {padding-top:1.8rem;} .brand {margin-bottom:30px;} .brand span:last-child {display:none;} }
