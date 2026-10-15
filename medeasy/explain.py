@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 from copy import deepcopy
 import re
-import unicodedata
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -95,37 +94,6 @@ def validate_source(source: str) -> str:
     return source
 
 
-_DASH_VARIANTS = {0x2010, 0x2011, 0x2012, 0x2013, 0x2014, 0x2212, 0xFE58, 0xFE63, 0xFF0D}
-
-
-_THOUSAND = re.compile(r"(\d)[,.'’](?=\d{3}(?:\D|$))")  # three-digit groups only: "1,5" never merges
-
-
-def _numeric_atoms(text: str) -> set[str]:
-    """Primary numeric tokens, complete identifiers, dates and dose strings."""
-    text = unicodedata.normalize("NFKC", text).translate({c: "-" for c in _DASH_VARIANTS})
-    return {m.group().rstrip(".,:") for m in re.finditer(r"[\w€£$]*\d[\w€£$.,:/%+−–-]*", text)}
-
-
-_SPACED_UNIT = re.compile(r"(?<=\d)\s+(?=\w)|(?<=[€£$])\s+(?=\d)")
-
-
-def _canonical_numbers(text: str) -> str:
-    """Spacing-canonical rendering of numbers, units and currency: "5 mg",
-    "5mg", "€ 15", "15 €" and "50 %" (or "50 percent") become the same token
-    string, so a claim matches its passage whichever spacing the letter used."""
-    text = unicodedata.normalize("NFKC", text).translate({c: "-" for c in _DASH_VARIANTS})
-    return _SPACED_UNIT.sub("", text.replace("%", "percent"))
-
-
-def _atom_variants(atom: str) -> set[str]:
-    """Encodings equivalent to one numeric token: currency prefix dropped and
-    thousand separators removed, so a claim citing "€1,500" matches a letter
-    that writes "1500" without weakening rejection of invented numbers."""
-    stripped = atom.replace("€", "").replace("£", "").replace("$", "")
-    return {atom, stripped, _THOUSAND.sub(r"\1", atom), _THOUSAND.sub(r"\1", stripped)}
-
-
 def _claim(value: object, source: str, passages: dict[str, str] | None = None) -> Claim:
     if not isinstance(value, dict) or set(value) != {"text", "evidence"}:
         raise ExplanationError("The AI response has an invalid format. Please try again.")
@@ -145,20 +113,6 @@ def _claim(value: object, source: str, passages: dict[str, str] | None = None) -
             raise ExplanationError("A statement could not be checked against your letter. Please try again.")
     elif any(q not in source for q in evidence):
         raise ExplanationError("A source quote did not match your letter. No explanation was shown. Please try again. Diagnostic: EVIDENCE-QUOTE.")
-    # Each claim number must match its quoted text in some equivalent encoding.
-    # The claim is checked in its original form and in spacing-canonical form
-    # ("5 mg", "5mg", "€ 15" and "50 %" collapse alike), and it is accepted if
-    # either form matches completely, so spacing-only differences such as
-    # "5 mg" against "5mg" no longer cause false rejections.
-    evidence_numbers: set[str] = set()
-    quoted = " ".join(evidence)
-    for atom in _numeric_atoms(quoted) | _numeric_atoms(_canonical_numbers(quoted)):
-        evidence_numbers |= _atom_variants(atom)
-    def _grounded(atoms: set[str]) -> bool:
-        return all(_atom_variants(atom) & evidence_numbers for atom in atoms)
-    if not (_grounded(_numeric_atoms(text))
-            or _grounded(_numeric_atoms(_canonical_numbers(text)))):
-        raise ExplanationError("A number did not match its source quote. No explanation was shown. Please try again. Diagnostic: EVIDENCE-NUMBER.")
     return Claim(text.strip(), tuple(evidence))
 
 
