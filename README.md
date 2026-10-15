@@ -428,9 +428,13 @@ medeasy_ai/
   `python --version` if a file still fails. The native text path does not require
   Tesseract or PDFium for ordinary text PDFs.
 - **Evidence/number mismatch:** no explanation is displayed if the model cites an
-  unknown passage ID or uses a number absent from its cited passages. Check source
-  text and retry, or consult your care team. Validation is not bypassed. Version
-  1.6 removes the older requirement for the model to copy source quotes verbatim.
+  unknown passage ID or uses a number absent from its cited passages. Numbers
+  written in an equivalent encoding (thousand separators, currency symbol attached
+  or dropped, dash or space variants, full-width digits) count as matching.
+  Clicking **Explain my letter →** again sends the letter once and adds a
+  correction instruction asking the model to copy numbers exactly; there are no
+  automatic retries, so each retry is a request the user chooses. Alternatively
+  check the source text, or consult your care team. Validation is not bypassed.
 - **Camera unavailable:** allow camera permission, use localhost or HTTPS, or
   choose **Take a picture → Upload a photo**.
 - **Photo reading unavailable:** install Tesseract separately from Python packages,

@@ -156,6 +156,7 @@ with left:
         if st.session_state.get("source_id") != source_id:
             st.session_state.pop("result", None)
             st.session_state.source_id = source_id
+            st.session_state.explain_failures = 0
         st.caption(f"{len(source):,} / 40,000 characters. Check names, dates, amounts, medicines and doses against the original.")
         consent = st.checkbox("I checked this text. I agree to send it to TrustedTokens to get an explanation.", key=f"consent_{epoch}_{source_id}")
         if st.button("Explain my letter →", type="primary", use_container_width=True,
@@ -163,12 +164,25 @@ with left:
             st.session_state.pop("result", None)
             try:
                 source = validate_source(source)
+                # Validation failures are deterministic at temperature 0, so a user
+                # retry carries an app-generated correction note (one paid request
+                # per click; no automatic retries).
+                failures = st.session_state.get("explain_failures", 0)
+                repair = (f"Correction request: your previous response was rejected "
+                          f"during validation because a claim contained a number or "
+                          f"quote that its cited passages did not support. Return the "
+                          f"explanation again. Copy every number character for "
+                          f"character from the cited passages, and cite the passages "
+                          f"that actually contain what you describe.")
                 with st.spinner("Reading your letter and checking the explanation…"):
-                    result = explain(source, api_key, model)
+                    result = explain(source, api_key, model, repair_note=repair if failures else None)
                 st.session_state.result = (result, source)
+                st.session_state.explain_failures = 0
             except ExplanationError as exc:
+                st.session_state.explain_failures = st.session_state.get("explain_failures", 0) + 1
                 st.error(str(exc))
             except Exception:
+                st.session_state.explain_failures = st.session_state.get("explain_failures", 0) + 1
                 st.error("The explanation could not be completed. Please try again. No partial explanation was shown.")
 
 if "result" in st.session_state:
@@ -192,4 +206,4 @@ if "result" in st.session_state:
                             st.text(f'“{quote}”')
     st.download_button("Download explanation (.txt)", render_text(result, result_source), file_name="medeasy_explanation.txt", mime="text/plain", use_container_width=False)
 
-st.markdown('<div class="footer">MedEasy AI v1.6 · Simple words. Clear next steps. &nbsp; This app explains the supplied text. It does not verify the letter or replace your care team.</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">MedEasy AI v1.6.1 · Simple words. Clear next steps. &nbsp; This app explains the supplied text. It does not verify the letter or replace your care team.</div>', unsafe_allow_html=True)

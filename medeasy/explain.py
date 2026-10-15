@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 from copy import deepcopy
 import re
+import unicodedata
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -60,7 +61,9 @@ Include EVERY stated deadline, appointment, payment amount, medicine name, dose,
 route, frequency, duration, start/stop instruction and warning/return precaution.
 important_details: ALL reference numbers, dates, amounts and other essential
 information, contacts, diagnoses and uncertainties. Keep every date, amount,
-reference number, dose, unit and medicine name EXACTLY as written. Do not convert
+reference number, dose, unit and medicine name EXACTLY as written. Copy numbers
+character for character from the passages, including separators, decimal points
+and units; never reformat, regroup or round them. Do not convert
 units, reformat dates, calculate deadlines, infer dates from today or add numbers.
 Explain jargon in simple English only when its meaning is supported by the letter.
 If an essential field is absent (especially deadlines, payments or references),
@@ -92,9 +95,24 @@ def validate_source(source: str) -> str:
     return source
 
 
+_DASH_VARIANTS = {0x2010, 0x2011, 0x2012, 0x2013, 0x2014, 0x2212, 0xFE58, 0xFE63, 0xFF0D}
+
+
+_THOUSAND = re.compile(r"(\d)[,.'’](?=\d{3}(?:\D|$))")  # three-digit groups only: "1,5" never merges
+
+
 def _numeric_atoms(text: str) -> set[str]:
-    # Retains complete identifiers, decimal separators, dates and dose strings.
+    """Primary numeric tokens, complete identifiers, dates and dose strings."""
+    text = unicodedata.normalize("NFKC", text).translate({c: "-" for c in _DASH_VARIANTS})
     return {m.group().rstrip(".,:") for m in re.finditer(r"[\w€£$]*\d[\w€£$.,:/%+−–-]*", text)}
+
+
+def _atom_variants(atom: str) -> set[str]:
+    """Encodings equivalent to one numeric token: currency prefix dropped and
+    thousand separators removed, so a claim citing "€1,500" matches a letter
+    that writes "1500" without weakening rejection of invented numbers."""
+    stripped = atom.replace("€", "").replace("£", "").replace("$", "")
+    return {atom, stripped, _THOUSAND.sub(r"\1", atom), _THOUSAND.sub(r"\1", stripped)}
 
 
 def _claim(value: object, source: str, passages: dict[str, str] | None = None) -> Claim:
@@ -116,7 +134,11 @@ def _claim(value: object, source: str, passages: dict[str, str] | None = None) -
             raise ExplanationError("A statement could not be checked against your letter. Please try again.")
     elif any(q not in source for q in evidence):
         raise ExplanationError("A source quote did not match your letter. No explanation was shown. Please try again.")
-    if not _numeric_atoms(text).issubset(_numeric_atoms(" ".join(evidence))):
+    # Each claim number must match its quoted text in some equivalent encoding.
+    evidence_numbers: set[str] = set()
+    for atom in _numeric_atoms(" ".join(evidence)):
+        evidence_numbers |= _atom_variants(atom)
+    if any(not (_atom_variants(atom) & evidence_numbers) for atom in _numeric_atoms(text)):
         raise ExplanationError("A number did not match its source quote. No explanation was shown. Please try again.")
     return Claim(text.strip(), tuple(evidence))
 
@@ -143,7 +165,13 @@ def parse_explanation(payload: str, source: str, passages: dict[str, str] | None
 
 
 
-def explain(source: str, api_key: str, model: str) -> Explanation:
+def explain(source: str, api_key: str, model: str, repair_note: str | None = None) -> Explanation:
+    """Explain the letter in one API request, with no automatic retries.
+
+    repair_note: app-generated instruction (never patient text) used when the
+    user retried after a validation failure, so a repeated request can succeed
+    instead of reproducing the same rejected response.
+    """
     source = validate_source(source)
     if not api_key or api_key.startswith("your_"):
         raise ExplanationError("Add your TrustedTokens API key to .env or Streamlit Secrets first.")
@@ -160,7 +188,7 @@ def explain(source: str, api_key: str, model: str) -> Explanation:
     body = {
         "model": model, "temperature": 0, "max_tokens": 7000,
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": SYSTEM_PROMPT if not repair_note else f"{SYSTEM_PROMPT}\n{repair_note}"},
             {"role": "user", "content": json.dumps({"source_passages": [{"id": ref, "text": text} for ref, text in passages.items()]}, ensure_ascii=False)},
         ],
         "response_format": {"type": "json_schema", "json_schema": {

@@ -1,3 +1,18 @@
+# Number encodings and effective retries — v1.6.1 — 15 October 2026
+
+- Accept numeric claims that copy a letter's number in an equivalent encoding:
+  thousand separators (1,500 / 1.500 / 1500), an attached or absent currency
+  symbol, dash variants and full-width digits. Decimal commas such as "1,5"
+  are never merged with plain digits, and genuinely invented numbers are still
+  rejected.
+- Reminder: a repeated **Explain my letter →** click now sends an app-generated
+  correction instruction with the letter (never patient data), because a failed
+  validation was reproducible at temperature 0. One paid request per click;
+  still no automatic retries.
+- Strengthened the prompt to require copying numbers character for character.
+- Added six regression tests for encoding equivalence, decimal commas and the
+  correction-note plumbing.
+
 # Source evidence fix — v1.6 — 15 October 2026
 
 - Replaced model-copied source quotes with server-assigned passage IDs.

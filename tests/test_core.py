@@ -90,6 +90,34 @@ class GroundingTests(unittest.TestCase):
         with self.assertRaises(ExplanationError):
             parse_explanation("```json\n{}\n```", SOURCE)
 
+    def test_equivalent_number_encodings_accepted(self):
+        euro_source = "Invoice: pay €1,500 by 28 October 2026.\nTake 10–15 mg daily.\nFee 1.500,00 recorded."
+        data = {
+            "summary": claim("The letter is one invoice.", "Invoice: pay €1,500 by 28 October 2026."),
+            "action_required": [
+                claim("You must pay 1500 by 28 October 2026.", euro_source),
+                claim("Dose range is 10-15 mg daily.", euro_source),
+            ],
+            "important_details": [claim("Fee is 1.500,00.", euro_source)],
+        }
+        result = parse_explanation(json.dumps(data), euro_source)
+        self.assertIn("1500", result.actions[0].text)
+
+    def test_currency_symbol_treated_as_encoding(self):
+        # Deliberate policy: a differing inline currency symbol counts as a
+        # formatting variant, because the numeric value itself must still be
+        # copied exactly from the quoted passage.
+        data = response()
+        data["action_required"] = [claim("Pay $15.00.", "Pay £15.00 by 28 October 2026.")]
+        parse_explanation(json.dumps(data), SOURCE)
+
+    def test_decimal_comma_never_merges_digits(self):
+        source = "Take 1,5 mg daily."
+        data = response()
+        data["action_required"] = [claim("Take 15 mg daily.", source)]
+        with self.assertRaises(ExplanationError):
+            parse_explanation(json.dumps(data), source)
+
     def test_money_preserved(self):
         data = response()
         data["action_required"] = [claim("Pay £15.00.", "Pay £15.00 by 28 October 2026.")]
@@ -146,6 +174,18 @@ class APITests(unittest.TestCase):
                 explain(SOURCE, "secret-key", "example/model")
         self.assertNotIn("secret", str(caught.exception))
         self.assertIn("key", str(caught.exception))
+
+    def test_repair_note_carried_in_system_message(self):
+        indexed = response()
+        for item in [indexed["summary"], *indexed["action_required"], *indexed["important_details"]]:
+            item["evidence"] = ["S0001"]
+        body = {"choices": [{"finish_reason": "stop", "message": {"content": json.dumps(indexed)}}]}
+        with patch("urllib.request.build_opener", return_value=self.fake_opener(body)):
+            explain(SOURCE, "secret-key", "example/model", repair_note="COPY NUMBERS EXACTLY.")
+        payload = json.loads(self.request.data)
+        self.assertIn("COPY NUMBERS EXACTLY.", payload["messages"][0]["content"])
+        # The user payload with the letter text is unchanged by the note.
+        self.assertEqual(json.loads(payload["messages"][1]["content"])["source_passages"][0]["text"], SOURCE)
 
     def test_no_request_for_missing_key_or_oversize(self):
         with patch("urllib.request.build_opener") as build:
