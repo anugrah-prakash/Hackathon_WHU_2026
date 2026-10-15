@@ -171,9 +171,12 @@ with left:
                 repair = (f"Correction request: your previous response was rejected "
                           f"during validation because a claim contained a number or "
                           f"quote that its cited passages did not support. Return the "
-                          f"explanation again. Copy every number character for "
-                          f"character from the cited passages, and cite the passages "
-                          f"that actually contain what you describe.")
+                          f"explanation again. For every claim, cite the passages that "
+                          f"actually contain what you describe, including every number "
+                          f"in that claim. Copy each number exactly as the cited passage "
+                          f"writes it, with the same decimal points, separators, "
+                          f"currency symbols, units and spacing, and never reformat or "
+                          f"round it. Do not restate a number whose passage is not cited.")
                 with st.spinner("Reading your letter and checking the explanation…"):
                     result = explain(source, api_key, model, repair_note=repair if failures else None)
                 st.session_state.result = (result, source)

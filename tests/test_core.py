@@ -111,6 +111,27 @@ class GroundingTests(unittest.TestCase):
         data["action_required"] = [claim("Pay $15.00.", "Pay £15.00 by 28 October 2026.")]
         parse_explanation(json.dumps(data), SOURCE)
 
+    def test_spacing_variants_of_number_and_unit_accepted(self):
+        # Spelling differences in spacing between the claim and its cited
+        # passage do not change the number and must not be rejected.
+        spacing_source = (SOURCE + "\nTake 5mg daily.\nTake 5 mg daily.\nFee: € 15 recorded.\n"
+                          "A 50 % reduction applies.\nCost is 50 percent recorded.")
+        for quoted, text in (("Take 5mg daily.", "Take 5 mg daily."),
+                             ("Take 5 mg daily.", "Take 5mg daily."),
+                             ("Fee: € 15 recorded.", "Fee: €15 recorded."),
+                             ("A 50 % reduction applies.", "A 50% reduction applies."),
+                             ("Cost is 50 percent recorded.", "Cost is 50% recorded.")):
+            with self.subTest(quote=quoted, text=text):
+                data = response()
+                data["action_required"] = [claim(text, quoted)]
+                parse_explanation(json.dumps(data), spacing_source)
+
+    def test_spacing_variant_still_rejects_invented_number(self):
+        data = response()
+        data["action_required"] = [claim("Pay 150.00 by 28 October 2026.", "Pay £15.00 by 28 October 2026.")]
+        with self.assertRaises(ExplanationError):
+            parse_explanation(json.dumps(data), SOURCE)
+
     def test_decimal_comma_never_merges_digits(self):
         source = "Take 1,5 mg daily."
         data = response()

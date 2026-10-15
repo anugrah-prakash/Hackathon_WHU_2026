@@ -107,6 +107,17 @@ def _numeric_atoms(text: str) -> set[str]:
     return {m.group().rstrip(".,:") for m in re.finditer(r"[\w€£$]*\d[\w€£$.,:/%+−–-]*", text)}
 
 
+_SPACED_UNIT = re.compile(r"(?<=\d)\s+(?=\w)|(?<=[€£$])\s+(?=\d)")
+
+
+def _canonical_numbers(text: str) -> str:
+    """Spacing-canonical rendering of numbers, units and currency: "5 mg",
+    "5mg", "€ 15", "15 €" and "50 %" (or "50 percent") become the same token
+    string, so a claim matches its passage whichever spacing the letter used."""
+    text = unicodedata.normalize("NFKC", text).translate({c: "-" for c in _DASH_VARIANTS})
+    return _SPACED_UNIT.sub("", text.replace("%", "percent"))
+
+
 def _atom_variants(atom: str) -> set[str]:
     """Encodings equivalent to one numeric token: currency prefix dropped and
     thousand separators removed, so a claim citing "€1,500" matches a letter
@@ -133,13 +144,21 @@ def _claim(value: object, source: str, passages: dict[str, str] | None = None) -
         if not re.fullmatch(r"[A-Za-z /()-]+: Not specified in the letter", text):
             raise ExplanationError("A statement could not be checked against your letter. Please try again.")
     elif any(q not in source for q in evidence):
-        raise ExplanationError("A source quote did not match your letter. No explanation was shown. Please try again.")
+        raise ExplanationError("A source quote did not match your letter. No explanation was shown. Please try again. Diagnostic: EVIDENCE-QUOTE.")
     # Each claim number must match its quoted text in some equivalent encoding.
+    # The claim is checked in its original form and in spacing-canonical form
+    # ("5 mg", "5mg", "€ 15" and "50 %" collapse alike), and it is accepted if
+    # either form matches completely, so spacing-only differences such as
+    # "5 mg" against "5mg" no longer cause false rejections.
     evidence_numbers: set[str] = set()
-    for atom in _numeric_atoms(" ".join(evidence)):
+    quoted = " ".join(evidence)
+    for atom in _numeric_atoms(quoted) | _numeric_atoms(_canonical_numbers(quoted)):
         evidence_numbers |= _atom_variants(atom)
-    if any(not (_atom_variants(atom) & evidence_numbers) for atom in _numeric_atoms(text)):
-        raise ExplanationError("A number did not match its source quote. No explanation was shown. Please try again.")
+    def _grounded(atoms: set[str]) -> bool:
+        return all(_atom_variants(atom) & evidence_numbers for atom in atoms)
+    if not (_grounded(_numeric_atoms(text))
+            or _grounded(_numeric_atoms(_canonical_numbers(text)))):
+        raise ExplanationError("A number did not match its source quote. No explanation was shown. Please try again. Diagnostic: EVIDENCE-NUMBER.")
     return Claim(text.strip(), tuple(evidence))
 
 
